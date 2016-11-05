@@ -1,0 +1,106 @@
+---
+title: "Practical Machine Learning - Course Project"
+author: "David Junor"
+date: "November 4, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE) 
+```
+
+## Introduction & Background
+"Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement ??? a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). "
+
+The purpose of this project is to predict the manner in which individuals did the exercise using any of the variables in the data set to predict with.  
+
+## Load Libraries
+```{r Load Libraries, echo=TRUE, warning=FALSE, message=FALSE}
+library(caret)
+library(randomForest)
+library(rpart)
+library(e1071)
+library(foreach)
+library(doParallel)
+```
+## Reproducability
+```{r Set Seed}
+set.seed(12345)
+```
+## Load the Data
+```{r Set Working Directory}
+setwd("~/DataScienceSpecialization/PracticalMachineLearning/CourseProject")
+```
+```{r Training Data}
+trainUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+```
+
+```{r Testing Data}
+testUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+```
+
+```{r Load into Memory}
+training <- read.csv(url(trainUrl),na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv(url(testUrl),na.strings=c("NA","#DIV/0!",""))
+```
+## Data Cleaning
+All blank values converted to "NA" and the columns containing "NA" removed from both the training and testing data sets.  Columns 1 through 7 contain no usefull information and are removed from both data sets.
+```{r Clean Data}
+training <- training[, colSums(is.na(training)) == 0]
+testing <- testing[, colSums(is.na(testing)) == 0]
+
+training <- training[, -c(1:7)]
+testing <- testing[, -c(1:7)]
+```
+
+## Create Validation Data Set for Cross Validation
+```{r Create Validation Data}
+inTrain <- createDataPartition(training$classe, p = 0.75, list = FALSE)
+train <- training[inTrain, ]
+valid <- training[-inTrain, ]
+```
+
+## Create Prediction Algorithm Using Random Forest
+```{r Prediction Algorithm}
+registerDoParallel()
+
+classe <- train$classe
+variables <- train[-ncol(train)]
+
+fit_rf <- foreach(ntree=rep(250, 4), .combine=randomForest::combine, .packages='randomForest') %dopar% {
+randomForest(variables, classe, ntree=ntree) 
+}
+
+print(fit_rf, digits = 4)
+```
+
+## Assess Accuracy and Sample Error
+
+#### Training Data Accuracy
+```{r Predict Training Data}
+predictTraining <- predict(fit_rf, train)
+confusionMatrix(predictTraining, train$classe)
+```
+
+#### Validation Data Acccuracy
+```{r Predict Validation Data}
+predictValidation <- predict(fit_rf, valid)
+confusionMatrix(predictValidation, valid$classe)
+```
+## Results
+The random forest method produced a validation accuracy of 0.995 with an out of sample error rate of 0.005.  This compares to the training accuracy of 1 and an out of sample error rate of 0.0.
+
+Given the high accuracy of the random forest model on both the training and validation data it will be used to predict the 20 test cases.
+
+
+## Apply the Prediction Model
+```{r Apply Prediction to Test data set}
+feature_set <- colnames(training)
+evaluation_data <- testing
+
+x <- evaluation_data
+x <- x[feature_set[feature_set!='classe']]
+cases <- predict(fit_rf, newdata=x)
+
+cases
+```

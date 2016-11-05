@@ -1,0 +1,21 @@
+{
+    "collab_server" : "",
+    "contents" : "library(Hmisc)\nlibrary(caret)\nlibrary(randomForest)\nlibrary(foreach)\nlibrary(doParallel)\nset.seed(998)\n\ntrainUrl <- \"http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv\"\ntraining.df <- read.csv(url(trainUrl),na.strings=c(\"NA\",\"#DIV/0!\",\"\"))\n\ntraining.df <- training.df[,colSums(is.na(training.df)) == 0]\ntraining.df   <- training.df[,-c(1:7)]\n\ninTraining.matrix    <- createDataPartition(training.df$classe, p = 0.75, list = FALSE)\ntraining.data.df <- training.df[inTraining.matrix, ]\ntesting.data.df  <- training.df[-inTraining.matrix, ]\n\nregisterDoParallel()\nclasse <- training.data.df$classe\nvariables <- training.data.df[-ncol(training.data.df)]\n\nrf <- foreach(ntree=rep(250, 4), .combine=randomForest::combine, .packages='randomForest') %dopar% {\n    randomForest(variables, classe, ntree=ntree) \n}\n\ntraining.predictions <- predict(rf, newdata=training.data.df)\nconfusionMatrix(training.predictions,training.data.df$classe)\n\ntesting.predictions <- predict(rf, newdata=testing.data.df)\nconfusionMatrix(testing.predictions,testing.data.df$classe)",
+    "created" : 1478348002153.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "754885843",
+    "id" : "20BE1D33",
+    "lastKnownWriteTime" : 1478369395,
+    "last_content_update" : 1478369395760,
+    "path" : "~/DataScienceSpecialization/PracticalMachineLearning/CourseProject/test01.R",
+    "project_path" : "test01.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 10,
+    "source_on_save" : true,
+    "source_window" : "",
+    "type" : "r_source"
+}
